@@ -1,57 +1,77 @@
 # Fine-Tuning-TinyLlama-1.1B-with-LoRA
-This repository contains a Jupyter Notebook for fine-tuning the TinyLlama-1.1B model using Parameter-Efficient Fine-Tuning (PEFT) techniques, specifically LoRA. The model is trained on the Alpaca dataset to improve its instruction-following capabilities.
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/YOUR_USERNAME/YOUR_REPO/blob/main/YOUR_NOTEBOOK.ipynb)
+This repository fine-tunes `TinyLlama/TinyLlama-1.1B-Chat-v1.0` on the Alpaca instruction dataset using LoRA with TRL, PEFT, and optional 4-bit quantization. It now includes a reproducible CLI training script in addition to the original notebook.
 
-## 🚀 Features
-- **Model:** TinyLlama-1.1B-Chat-v1.0.
-- **Technique:** LoRA (Low-Rank Adaptation) for efficient fine-tuning.
-- **Quantization:** 4-bit quantization via bitsandbytes to enable training on consumer-grade GPUs (like the Google Colab T4).
-- **Dataset:** Alpaca (52k instruction-following records).
-- **Frameworks:** transformers, peft, trl, and bitsandbytes.
+## What Changed
 
-## 🛠️ Installation
-To run this notebook, you will need to install the following dependencies:
+- `train.py` provides a scriptable training and evaluation workflow.
+- `requirements.txt` now contains only project-relevant dependencies.
+- The original notebook, `FineTuning_TinyLlama_LoRA.ipynb`, remains in the repo for interactive exploration.
 
-```python
-Bash
-pip install -q -U transformers peft trl bitsandbytes accelerate datasets
+## Features
+
+- Model: `TinyLlama/TinyLlama-1.1B-Chat-v1.0`
+- Fine-tuning method: LoRA via PEFT
+- Trainer: `trl.SFTTrainer`
+- Dataset: `tatsu-lab/alpaca`
+- Optional 4-bit loading through `bitsandbytes`
+- Built-in deterministic adapter-vs-base evaluation export
+
+## Installation
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -U pip
+pip install -r requirements.txt
 ```
 
+## Quick Start
 
-## 📈 Training Configuration
-The notebook is optimized for a single NVIDIA T4 GPU:
+Train on a smaller sample that fits common single-GPU setups:
 
-- **Batch Size:** 2.
-- **Gradient Accumulation Steps:** 8 (Effective batch size of 16).
-- **Optimizer:** Paged AdamW 32-bit.
-- **Learning Rate:** 2e-4.
-- **Precision:** 4-bit NormalFloat.
-
-## 💡 Usage
-
-1. Training
-The training process uses the SFTTrainer from the TRL library. It processes the Alpaca dataset and saves LoRA adapters that can be merged back into the base model.
-
-2. Inference
-You can load the trained adapters and test the model using the following snippet included in the notebook:
-
-```python
-Python
-from peft import PeftModel
-from transformers import AutoModelForCausalLM, AutoTokenizer
-
-# Load base model and adapter
-base_model = AutoModelForCausalLM.from_pretrained("TinyLlama/TinyLlama-1.1B-Chat-v1.0")
-ft_model = PeftModel.from_pretrained(base_model, "path_to_your_adapter")
-
-# Generate response
-prompt = "### Instruction:\nGive me 3 practical tips to reduce stockouts.\n\n### Response:\n"
-# ... generation code ...
+```bash
+python3 train.py \
+  --dataset-sample-size 8000 \
+  --validation-size 256 \
+  --output-dir outputs/tinyllama-alpaca-lora \
+  --adapter-dir outputs/tinyllama-alpaca-lora-adapter
 ```
 
-## 📊 Results
-The notebook includes a comparison between the Base Model and the Fine-Tuned Model. The fine-tuned version demonstrates significantly better adherence to the "Alpaca" instruction format and provides more structured, concise answers.
+If you are running on a T4 or another GPU without strong `bf16` support, force `fp16`:
 
-## 📄 License
+```bash
+python3 train.py --precision fp16
+```
+
+If you want to skip the prompt comparison export:
+
+```bash
+python3 train.py --skip-eval
+```
+
+## Outputs
+
+After a run, the script writes:
+
+- Adapter weights to `outputs/tinyllama-alpaca-lora-adapter`
+- Trainer checkpoints and metadata to `outputs/tinyllama-alpaca-lora`
+- Prompt comparison CSV to `outputs/evaluation_base_vs_ft.csv`
+- JSON summaries for training and evaluation alongside those outputs
+
+## Notes
+
+- The default sample size is `8000` rows to keep the example practical for smaller hardware.
+- The script creates a small validation split when possible so runs are easier to compare.
+- Precision is set automatically, but you can override it with `--precision fp16` or `--precision bf16`.
+- The evaluation is lightweight and prompt-based; it is useful for regression checks, not as a full benchmark.
+
+## Notebook
+
+The original notebook is still available for Colab-style experimentation:
+
+- `FineTuning_TinyLlama_LoRA.ipynb`
+
+## License
+
 This project is licensed under the MIT License.
